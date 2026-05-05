@@ -1,0 +1,55 @@
+{
+  "name": "anirban-be",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "imports": {
+    "#config/*": "./src/config/*",
+    "#shared/*": "./src/shared/*",
+    "#resources/*": "./src/resources/*",
+    "#plugins/*": "./src/plugins/*",
+    "#services/*": "./src/services/*",
+    "#lib/*": "./src/lib/*",
+    "#utils/*": "./src/utils/*"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run --project unit --project integration",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:all": "vitest run",
+    "test:watch": "vitest --project unit --project integration"
+  },
+  "dependencies": {
+    "@classytic/arc": "^2.14.1",
+    "@classytic/mongokit": "^3.13.0",
+    "@classytic/notifications": "^2.0.0",
+    "@classytic/primitives": "^0.4.0",
+    "@classytic/repo-core": "^0.4.0",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/sensible": "^6.0.4",
+    "@fastify/under-pressure": "^9.0.3",
+    "better-auth": "^1.6.9",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.8.5",
+    "mongodb": "^7.1.0",
+    "mongoose": "^9.6.1",
+    "mongoose-timeline-audit": "^2.0.0",
+    "nodemailer": "^8.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "mongodb-memory-server": "^11.1.0",
+    "pino-pretty": "^13.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

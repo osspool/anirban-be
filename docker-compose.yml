@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8040:8040"
+    environment:
+      - NODE_ENV=development
+      - PORT=8040
+      - HOST=0.0.0.0
+      - MONGODB_URI=mongodb://mongo:27017/anirban-be
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
