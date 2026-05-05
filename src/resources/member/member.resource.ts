@@ -33,7 +33,7 @@
 
 import mongoose from 'mongoose';
 import { defineResource } from '@classytic/arc';
-import { allowPublic, requireRoles } from '@classytic/arc/permissions';
+import { allowPublic, anyOf, requireOwnership, requireRoles } from '@classytic/arc/permissions';
 import { buildCrudSchemasFromModel, QueryParser } from '@classytic/mongokit';
 import { createBetterAuthOverlay } from '@classytic/mongokit/better-auth';
 import { getAuth } from '#resources/auth/auth.config.js';
@@ -63,6 +63,7 @@ const queryParser = new QueryParser({
   // QueryParser auto-applies safe operators ([eq], [in], [ne],
   // [contains] etc) per field.
   allowedFilterFields: [
+    'userId',
     'division',
     'memberStatus',
     'roleLabel',
@@ -92,7 +93,8 @@ const memberResource = defineResource({
   permissions: {
     list: allowPublic(),
     get: allowPublic(),
-    update: requireRoles(['admin']),
+    // Admin can edit anyone; member can edit their own record (userId match).
+    update: anyOf(requireRoles(['admin']), requireOwnership('userId')),
   },
 
   schemaOptions: {
