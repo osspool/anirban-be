@@ -1,20 +1,20 @@
 /**
  * Multi-role scenario.
  *
- * BA's `organization` plugin stores `member.role` as a comma-separated
- * string (e.g. `'admin,committee_member'`) and BA's permission check
- * splits on comma. arc's `extractRolesFromMembership` reads the same
- * field and `requireRoles` matches against any role in the union.
+ * BA's admin plugin stores `user.role` as a single string. arc's auth
+ * adapter (`normalizeRoles` in `@classytic/arc/auth`) splits the value
+ * on commas, so writing `'admin,committee_member'` to `user.role` makes
+ * arc see BOTH roles in `request.scope.userRoles`. `requireRoles(...)`
+ * passes if any expected role is in the union.
  *
  * Net effect: a foundation member can hold multiple roles at once — an
- * "executive" who is both a committee member and an admin gets both
+ * "executive" who is both committee member and admin gets both
  * permission sets without role inheritance plumbing.
  *
  * What this pins:
- *   - `'admin,committee_member'` written to `member.role` is accepted by
- *     arc — the user can hit admin-gated endpoints (membership PATCH)
- *     AND committee-gated endpoints (support workflow) with the same
- *     bearer token.
+ *   - `'admin,committee_member'` on `user.role` is accepted by arc —
+ *     the user can hit admin-gated endpoints (membership PATCH) AND
+ *     committee-gated endpoints (support workflow) with the same token.
  *   - The role union doesn't bleed: a `general`-only user still 403s on
  *     admin endpoints.
  */
@@ -27,20 +27,32 @@ import {
   submitSupportRequest,
 } from '../helpers/fixtures.js';
 
-describe('multi-role membership (executive holding admin + committee_member)', () => {
+describe('multi-role user (executive holding admin + committee_member)', () => {
   let ctx: IntegrationCtx;
   let executiveToken: string;
 
   beforeAll(async () => {
     ctx = await useIntegrationApp();
 
-    // Promote the seeded `committee` user to ALSO carry `admin`. BA stores
-    // multi-role as comma-separated; that's what we write here.
-    await mongoose.connection.db!.collection('member').updateOne(
-      { userId: new mongoose.Types.ObjectId(ctx.users.committee.userId) },
+    // Promote the seeded `committee` user to ALSO carry `admin`. We write
+    // the comma-separated value directly to `user.role` — that's what the
+    // BA admin plugin reads, and arc's auth adapter splits it.
+    const userId = ctx.users.committee.userId;
+    const userOid = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : null;
+    await mongoose.connection.db!.collection('user').updateOne(
+      userOid ? { _id: userOid } : { _id: userId as never },
       { $set: { role: 'admin,committee_member' } },
     );
-    executiveToken = ctx.users.committee.token;
+
+    // Re-sign-in so the new session reads the updated role.
+    const signin = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-in/email',
+      payload: { email: ctx.users.committee.email, password: 'integration-pass-1234' },
+    });
+    executiveToken = signin.headers['set-auth-token'] as string;
   });
 
   afterAll(async () => {
@@ -48,10 +60,7 @@ describe('multi-role membership (executive holding admin + committee_member)', (
   });
 
   function execHeaders() {
-    return {
-      Authorization: `Bearer ${executiveToken}`,
-      'x-organization-id': ctx.orgId,
-    };
+    return { Authorization: `Bearer ${executiveToken}` };
   }
 
   it('executive can hit admin-gated membership PATCH', async () => {
@@ -72,7 +81,7 @@ describe('multi-role membership (executive holding admin + committee_member)', (
 
   it('executive can also drive support-request workflow', async () => {
     const submit = await submitSupportRequest(ctx.app);
-    const id = submit.body._id as string;
+    const id = submit.body.reportId as string;
 
     const review = await ctx.app.inject({
       method: 'POST',

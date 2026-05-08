@@ -35,6 +35,9 @@ interface TimelineEvent {
 
 interface SupportRequestRow {
   _id: string;
+  /** Friendly tracking handle from `customIdPlugin` — also bound as the
+   *  resource `idField`, so URLs use this, not `_id`. */
+  reportId: string;
   status: 'pending' | 'in_review' | 'in_ministry' | 'resolved' | 'closed';
   subject: string;
   timeline: TimelineEvent[];
@@ -64,14 +67,16 @@ describe('support-request flow', () => {
       status: 'pending',
     });
     expect(body._id).toBeTypeOf('string');
+    expect(body.reportId).toBeTypeOf('string');
+    expect(body.reportId).toMatch(/^ANB-\d{4}-\d{4}$/);
     // Fresh submissions have no workflow events yet.
     expect(Array.isArray(body.timeline)).toBe(true);
     expect((body.timeline as unknown[]).length).toBe(0);
   });
 
-  it('allows the public to GET by id (the id is the tracking handle)', async () => {
+  it('allows the public to GET by reportId (the id IS the tracking handle)', async () => {
     const submit = await submitSupportRequest(ctx.app);
-    const id = submit.body._id as string;
+    const id = submit.body.reportId as string;
 
     const res = await ctx.app.inject({
       method: 'GET',
@@ -79,7 +84,7 @@ describe('support-request flow', () => {
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body) as SupportRequestRow;
-    expect(body._id).toBe(id);
+    expect(body.reportId).toBe(id);
   });
 
   it('rejects general-member list reads (committee+ only)', async () => {
@@ -124,7 +129,7 @@ describe('support-request flow', () => {
 
   it('committee starts review → timeline gains support.startReview event', async () => {
     const submit = await submitSupportRequest(ctx.app);
-    const id = submit.body._id as string;
+    const id = submit.body.reportId as string;
 
     const res = await action(id, 'startReview', 'committee', {
       note: 'Initial triage — assigning to legal team.',
@@ -139,7 +144,7 @@ describe('support-request flow', () => {
 
   it('full happy-path workflow: pending → in_review → in_ministry → resolved', async () => {
     const submit = await submitSupportRequest(ctx.app);
-    const id = submit.body._id as string;
+    const id = submit.body.reportId as string;
 
     await action(id, 'startReview', 'committee', { note: 'reviewing' });
     await action(id, 'escalateToMinistry', 'committee', { note: 'ref# 11/2026 to MoWCA' });
@@ -161,7 +166,7 @@ describe('support-request flow', () => {
 
   it('reopen → close round-trip', async () => {
     const submit = await submitSupportRequest(ctx.app);
-    const id = submit.body._id as string;
+    const id = submit.body.reportId as string;
 
     await action(id, 'startReview', 'committee', { note: 'r' });
     await action(id, 'resolve', 'committee', { note: 'done' });
@@ -179,7 +184,7 @@ describe('support-request flow', () => {
 
   it('rejects invalid transitions (FSM guard)', async () => {
     const submit = await submitSupportRequest(ctx.app);
-    const id = submit.body._id as string;
+    const id = submit.body.reportId as string;
 
     // resolve without going through review first → blocked
     const res = await action(id, 'resolve', 'committee', { note: 'skip review' });
@@ -190,7 +195,7 @@ describe('support-request flow', () => {
 
   it('committee can append free-form notes without changing status', async () => {
     const submit = await submitSupportRequest(ctx.app);
-    const id = submit.body._id as string;
+    const id = submit.body.reportId as string;
 
     await action(id, 'startReview', 'committee', { note: 'reviewing' });
     const noteRes = await action(id, 'note', 'committee', {
@@ -206,14 +211,14 @@ describe('support-request flow', () => {
 
   it('rejects empty notes', async () => {
     const submit = await submitSupportRequest(ctx.app);
-    const id = submit.body._id as string;
+    const id = submit.body.reportId as string;
     const res = await action(id, 'note', 'committee', { note: '   ' });
     expect(res.statusCode).toBe(400);
   });
 
   it('rejects general-member workflow actions', async () => {
     const submit = await submitSupportRequest(ctx.app);
-    const id = submit.body._id as string;
+    const id = submit.body.reportId as string;
     const res = await action(id, 'startReview', 'general', { note: 'shouldnt work' });
     expect(res.statusCode).toBe(403);
   });

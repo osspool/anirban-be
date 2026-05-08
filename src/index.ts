@@ -11,10 +11,7 @@ import '#config/env.js';
 
 import config from '#config/index.js';
 import mongoose from 'mongoose';
-import {
-  ensureBootstrapAdmin,
-  ensureFoundationOrg,
-} from '#resources/auth/bootstrap.js';
+import { ensureBootstrapAdmin } from '#resources/auth/bootstrap.js';
 import { createAppInstance } from './app.js';
 
 async function main(): Promise<void> {
@@ -24,11 +21,8 @@ async function main(): Promise<void> {
   await mongoose.connect(config.database.uri);
   console.log('Connected to MongoDB');
 
-  // Seed the single foundation org + (optionally) the initial superadmin
-  // BEFORE building the app — actions in resources read the foundation
-  // org id at request time, so it must be cached up-front.
-  const orgId = await ensureFoundationOrg();
-  await ensureBootstrapAdmin(orgId);
+  // Seed the initial superadmin (no-op if env vars unset).
+  await ensureBootstrapAdmin();
 
   // Create and configure app
   const app = await createAppInstance();

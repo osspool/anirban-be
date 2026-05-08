@@ -60,12 +60,12 @@ export async function createAppInstance(
     resourcePrefix: '/api',
     auth: {
       type: 'betterAuth',
-      // `orgContext: true` makes arc resolve `req.scope.orgRoles` from
-      // BA's `member` collection — required when resource permissions
-      // call `requireRoles` (which checks BA org-roles, not just the
-      // platform user role). Without it every authenticated request lands
-      // as `kind: 'authenticated'` and admin-only endpoints 403.
-      betterAuth: createBetterAuthAdapter({ auth: getAuth(), orgContext: true }),
+      // No `orgContext` — the BA `organization` plugin is gone (see
+      // `auth.config.ts`). The foundation role lives on `user.role`
+      // (BA admin plugin), and arc's adapter copies it into
+      // `request.scope.userRoles`. `requireRoles(['admin'])` matches
+      // against that without any org-context plumbing.
+      betterAuth: createBetterAuthAdapter({ auth: getAuth() }),
     },
     cors: {
       origin: config.cors.origins,
