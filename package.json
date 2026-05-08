@@ -7,13 +7,13 @@
     "node": ">=22.0.0"
   },
   "imports": {
-    "#config/*": "./src/config/*",
-    "#shared/*": "./src/shared/*",
-    "#resources/*": "./src/resources/*",
-    "#plugins/*": "./src/plugins/*",
-    "#services/*": "./src/services/*",
-    "#lib/*": "./src/lib/*",
-    "#utils/*": "./src/utils/*"
+    "#config/*": "./dist/config/*",
+    "#shared/*": "./dist/shared/*",
+    "#resources/*": "./dist/resources/*",
+    "#plugins/*": "./dist/plugins/*",
+    "#services/*": "./dist/services/*",
+    "#lib/*": "./dist/lib/*",
+    "#utils/*": "./dist/utils/*"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
