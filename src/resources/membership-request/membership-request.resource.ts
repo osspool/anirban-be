@@ -49,7 +49,8 @@ const membershipRequestResource = defineResource<IMembershipRequest>({
     schemaGenerator: buildCrudSchemasFromModel,
   }),
   queryParser,
-  presets: ['softDelete'],
+  // Hard delete only — the `status` field encodes lifecycle; a deleted
+  // application is one the admin wants gone for real.
   // Single-tenant: foundation-wide, no per-org scoping on the request.
   tenantField: false,
 

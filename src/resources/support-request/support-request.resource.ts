@@ -109,7 +109,7 @@ const supportRequestResource = defineResource<ISupportRequest>({
     schemaGenerator: buildCrudSchemasFromModel,
   }),
   queryParser,
-  presets: ['softDelete'],
+  // Hard delete only — see repository file for rationale.
   // Single-tenant: foundation-wide, no per-org scoping.
   tenantField: false,
 

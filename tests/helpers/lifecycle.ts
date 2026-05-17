@@ -47,6 +47,12 @@ export async function useIntegrationApp(): Promise<IntegrationCtx> {
     process.env.BETTER_AUTH_SECRET || 'integration-test-secret-min-32-chars-long-x';
   process.env.FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
   process.env.PORT = process.env.PORT || '0';
+  // The media resource boots its engine at module-load (top-level await)
+  // and throws if any cloud key is missing. We never hit Cloudinary in
+  // tests, but the boot still needs strings — wire dummies once.
+  process.env.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'test-cloud';
+  process.env.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || 'test-key';
+  process.env.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || 'test-secret';
 
   await mongoose.connect(dbUri);
 

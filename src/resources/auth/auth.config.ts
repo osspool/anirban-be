@@ -21,12 +21,50 @@
 
 import { betterAuth } from 'better-auth';
 import { admin as adminPlugin, bearer } from 'better-auth/plugins';
+import { createAccessControl } from 'better-auth/plugins/access';
+import { defaultStatements } from 'better-auth/plugins/admin/access';
 import { mongodbAdapter } from '@better-auth/mongo-adapter';
 import { mirrorTrustedOriginsFromCors } from '@classytic/arc/auth';
 import { registerBetterAuthStubs } from '@classytic/mongokit/better-auth';
 import mongoose from 'mongoose';
 import config from '#config/index.js';
 import { notify } from '#shared/notifications/notification.service.js';
+
+// ----------------------------------------------------------------------------
+// Access-control roles for BA's admin plugin.
+//
+// BA validates that every entry in `adminRoles` exists as a key in `roles`
+// (built-in defaults only ship `admin` + `user`). We declare both `admin`
+// and `superadmin` against the same default statement set, sharing the full
+// admin permission surface. Anirban doesn't use BA's fine-grained
+// permission checks in code — arc's `requireRoles(['admin'])` /
+// `requireRoles(['superadmin'])` does string-level role gating — so we
+// don't need to diverge their statement lists. The two roles differ only
+// in what application-layer routes accept them (see `dashboard/email/setup`
+// for an example of a superadmin-only page).
+// ----------------------------------------------------------------------------
+const accessControl = createAccessControl(defaultStatements);
+const ADMIN_STATEMENTS = {
+  user: [
+    'create',
+    'list',
+    'set-role',
+    'ban',
+    'impersonate',
+    'delete',
+    'set-password',
+    'get',
+    'update',
+  ],
+  session: ['list', 'revoke', 'delete'],
+} as const;
+const adminRole = accessControl.newRole(ADMIN_STATEMENTS);
+const superadminRole = accessControl.newRole({
+  ...ADMIN_STATEMENTS,
+  // Superadmins can impersonate other admins, not just regular users — the
+  // extra statement exists for that.
+  user: [...ADMIN_STATEMENTS.user, 'impersonate-admins'],
+});
 
 // BA + plugins (admin, bearer) widens the generic past base
 // `ReturnType<typeof betterAuth>`. arc only consumes `handler` + `api`,
@@ -89,17 +127,31 @@ export function getAuth() {
       plugins: [
         bearer(),
         // BA admin plugin stores a single `role` string on every user.
-        // We pin the foundation role here:
-        //   admin            — full surface (also lets the user use
-        //                      ban/impersonate via the admin plugin).
+        // The foundation role hierarchy:
+        //   superadmin       — infrastructure (SMTP setup, env keys, the
+        //                      bootstrap-seeded founder). Above `admin`
+        //                      in the trust ladder; everything `admin`
+        //                      can do, plus the setup/operations pages.
+        //   admin            — full domain surface (members, chapters,
+        //                      requests, broadcasts) + BA ban/impersonate.
+        //                      Does NOT see infrastructure / setup pages.
         //   committee_member — runs the support-request workflow.
         //   general          — basic foundation member.
-        // arc's auth adapter copies `user.role` into
-        // `request.scope.userRoles`, and `requireRoles(['admin'])`
-        // matches against it.
+        //
+        // Both `superadmin` and `admin` count as platform admins to BA so
+        // ban/impersonate / userInfo work for either. arc's auth adapter
+        // copies `user.role` into `request.scope.userRoles`, and
+        // `requireRoles(['admin'])` matches against the list — pass
+        // `requireRoles(['superadmin'])` server-side when a route is
+        // infrastructure-only.
         adminPlugin({
           defaultRole: 'general',
-          adminRoles: ['admin'],
+          adminRoles: ['admin', 'superadmin'],
+          ac: accessControl,
+          roles: {
+            admin: adminRole,
+            superadmin: superadminRole,
+          },
         }),
       ],
     });

@@ -15,6 +15,8 @@ export type MembershipRequestStatus = 'pending' | 'approved' | 'rejected';
 
 export type TraffickingType = 'internal' | 'cross-border';
 
+export type ApplicantGender = 'male' | 'female';
+
 /** Predefined keys — the FE renders the labels via a translation table. */
 export type ContributionArea =
   | 'community_awareness'
@@ -55,6 +57,13 @@ export interface IMembershipRequest {
   emergencyContact?: string;
   /** WhatsApp number when different from `phone` (common in BD). */
   whatsappNumber?: string;
+
+  /** Self-reported gender. Flows through to `Member.gender` on approval. */
+  gender?: ApplicantGender;
+  /** Self-reported age in years. Many survivors don't have a documented
+   *  birthdate — we capture approximate age rather than DOB. Flows through
+   *  to `Member.age` on approval. */
+  age?: number;
 
   imageUrl?: string;
   /** The applicant's survivor story; optional, surfaced to admin reviewers. */
@@ -127,6 +136,9 @@ const membershipRequestSchema = new Schema<IMembershipRequest>(
     phone: { type: String, trim: true },
     emergencyContact: { type: String, trim: true },
     whatsappNumber: { type: String, trim: true },
+
+    gender: { type: String, enum: ['male', 'female'] },
+    age: { type: Number, min: 0, max: 150 },
 
     imageUrl: { type: String, trim: true },
     // Was required pre-spec-revision. The applicant's full story is now

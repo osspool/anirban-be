@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@classytic/arc": "^2.14.1",
+    "@classytic/media-kit": ">=3.2.0",
     "@classytic/mongokit": "^3.13.0",
     "@classytic/notifications": "^2.0.0",
     "@classytic/primitives": "^0.4.0",
@@ -39,6 +40,7 @@
     "better-auth": "^1.6.9",
     "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
+    "fastify-plugin": "^5.1.0",
     "mongodb": "^7.1.0",
     "mongoose": "^9.6.1",
     "mongoose-timeline-audit": "^2.0.0",

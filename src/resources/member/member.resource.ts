@@ -24,7 +24,7 @@
  *   GET    /api/members/:id      — public single read
  *   POST   /api/members          — admin creates a directory entry
  *   PATCH  /api/members/:id      — admin or owning user (userId match) updates
- *   DELETE /api/members/:id      — admin removes (soft-delete via preset)
+ *   DELETE /api/members/:id      — admin removes (hard delete)
  *
  * FE filter examples:
  *   /api/members?division=BDA&memberStatus=active
@@ -34,10 +34,13 @@
  *   /api/members?q=anjali (free-text — see `searchFields` below)
  */
 
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { defineResource } from '@classytic/arc';
-import { allowPublic, anyOf, requireOwnership, requireRoles } from '@classytic/arc/permissions';
+import { allowPublic, anyOf, requireOwnership } from '@classytic/arc/permissions';
 import { buildCrudSchemasFromModel, QueryParser } from '@classytic/mongokit';
 import { createMongooseAdapter } from '@classytic/mongokit/adapter';
+import { requireAdmin } from '#shared/permissions.js';
+import { getFoundationSummary } from '#shared/foundation-stats.js';
 import Member, { type IMember } from './member.model.js';
 import memberRepository from './member.repository.js';
 
@@ -54,6 +57,10 @@ const queryParser = new QueryParser({
     'roleLabel',
     'isPubliclyListed',
     'team',
+    'gender',
+    'age',
+    'chapterId',
+    'isChapterLead',
   ],
   // Free-text search — `?q=anjali` runs case-insensitive across these
   // fields (auto mode: text index when present, $or-of-$regex fallback).
@@ -69,7 +76,8 @@ const memberResource = defineResource<IMember>({
     schemaGenerator: buildCrudSchemasFromModel,
   }),
   queryParser,
-  presets: ['softDelete'],
+  // No soft-delete preset — DELETE physically removes the row. See the
+  // repository file for rationale.
   // Single-tenant: foundation-wide. Marketing site reads everyone's
   // public profiles; no per-row org scoping.
   tenantField: false,
@@ -77,11 +85,11 @@ const memberResource = defineResource<IMember>({
   permissions: {
     list: allowPublic(),
     get: allowPublic(),
-    create: requireRoles(['admin']),
-    // Admin can edit anyone; a logged-in user can edit their own row
-    // (matched by `userId`).
-    update: anyOf(requireRoles(['admin']), requireOwnership('userId')),
-    delete: requireRoles(['admin']),
+    create: requireAdmin(),
+    // Admin / superadmin can edit anyone; a logged-in user can edit their
+    // own row (matched by `userId`).
+    update: anyOf(requireAdmin(), requireOwnership('userId')),
+    delete: requireAdmin(),
   },
 
   schemaOptions: {
@@ -91,6 +99,31 @@ const memberResource = defineResource<IMember>({
       updatedAt: { systemManaged: true },
     },
   },
+
+  // ─── Custom routes ─────────────────────────────────────────────────
+  // Public foundation summary in a single response: total members, total
+  // chapters, distinct divisions and districts, gender breakdown. Drives
+  // the marketing hero stats on /members and /about with ONE fetch
+  // (instead of N parallel groupBy calls composed on the FE).
+  //
+  // Logic lives in the dedicated stats service so the route handler
+  // stays a thin glue layer and the same code can serve dashboard cards
+  // later without duplication.
+  routes: [
+    {
+      method: 'GET',
+      path: '/summary',
+      summary: 'Public foundation stats summary (cross-resource).',
+      permissions: allowPublic(),
+      // `raw: true` gives us the Fastify req/reply directly. Without it,
+      // arc's auto-wrap layer dropped the return value as an empty body.
+      raw: true,
+      handler: async (_req: FastifyRequest, reply: FastifyReply) => {
+        const summary = await getFoundationSummary();
+        return reply.code(200).send(summary);
+      },
+    },
+  ],
 });
 
 export default memberResource;

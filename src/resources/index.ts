@@ -22,12 +22,18 @@
  */
 
 import type { ResourceDefinition } from '@classytic/arc';
+import chapterResource from './chapter/chapter.resource.js';
+import cmsResource from './cms/cms.resource.js';
+import mediaResource from './media/media.resource.js';
 import memberResource from './member/member.resource.js';
 import membershipRequestResource from './membership-request/membership-request.resource.js';
 import supportRequestResource from './support-request/support-request.resource.js';
 
 /** Test-friendly static array — bypasses `loadResources` discovery. */
 export const STATIC_RESOURCES: ReadonlyArray<ResourceDefinition<unknown>> = [
+  chapterResource,
+  cmsResource,
+  mediaResource,
   memberResource,
   membershipRequestResource,
   supportRequestResource,

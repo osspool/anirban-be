@@ -25,7 +25,14 @@ const { Schema } = mongoose;
 
 export type MemberRole = 'admin' | 'committee_member' | 'general';
 export type MemberStatus = 'founding' | 'active' | 'ambassador' | 'alumni';
-export type MemberTeam = 'executive_committee' | 'chapter_committee' | 'advisory_board';
+/**
+ * Foundation-level teams ONLY. Per-chapter leadership is encoded via
+ * `chapterId` + `isChapterLead` — see those fields below. The old
+ * `'chapter_committee'` enum value conflated "global team" with
+ * "per-chapter role" and has been dropped.
+ */
+export type MemberTeam = 'executive_committee' | 'advisory_board';
+export type MemberGender = 'male' | 'female';
 
 export interface IMember {
   _id: mongoose.Types.ObjectId;
@@ -45,6 +52,19 @@ export interface IMember {
   joinedAt?: Date;
   isPubliclyListed: boolean;
 
+  /** Self-reported gender. Optional — directory entries are not required
+   *  to disclose. Persisted lowercase so filtering stays case-stable. */
+  gender?: MemberGender;
+  /** Age in years at the time the entry was created/last edited. Stored
+   *  as a number rather than a DOB on purpose: many survivors don't have
+   *  a documented birthdate and approximate age is the data we actually
+   *  collect during intake. Range guarded at the schema level. */
+  age?: number;
+  /** FK to a `Chapter._id` — which local Anirban chapter the member is
+   *  associated with. Optional: members can exist independent of any
+   *  chapter (founding members, advisors, alumni). */
+  chapterId?: string;
+
   /** BD division code: BDA / BDB / BDC / BDD / BDE / BDF / BDG / BDH. */
   division?: string;
   districtLabel?: string;
@@ -61,12 +81,19 @@ export interface IMember {
    *  from BA `user.role` for login-capable members. */
   role: MemberRole;
 
-  /** Team affiliation — drives the public `/team` page. Unset on members
-   *  who aren't part of a leadership team (still on `/members`, not on `/team`). */
+  /** Foundation-level team affiliation — drives the public `/team` page.
+   *  Unset on members who aren't part of a foundation-wide leadership
+   *  body (chapter leadership is encoded via `isChapterLead` instead). */
   team?: MemberTeam;
   teamPosition?: string;
-  /** Sort order within a team (lower wins; ties → displayName ASC). */
+  /** Sort order within a team OR a chapter — lower wins; ties → displayName ASC. */
   teamRank?: number;
+
+  /** Marks the member as a chapter lead. Used by the public chapter
+   *  page (`/chapters/:id`) to surface the lead at the top of the
+   *  "top members" block. A member can be a chapter lead even if `team`
+   *  is unset — chapter leadership is independent of foundation teams. */
+  isChapterLead?: boolean;
 
   createdAt: Date;
   updatedAt: Date;
@@ -85,6 +112,10 @@ const memberSchema = new Schema<IMember>(
     phone: { type: String, trim: true },
     joinedAt: { type: Date },
     isPubliclyListed: { type: Boolean, default: true },
+
+    gender: { type: String, enum: ['male', 'female'], index: true },
+    age: { type: Number, min: 0, max: 150 },
+    chapterId: { type: String, trim: true, index: true, sparse: true },
 
     division: { type: String, trim: true, index: true },
     districtLabel: { type: String, trim: true },
@@ -108,11 +139,12 @@ const memberSchema = new Schema<IMember>(
 
     team: {
       type: String,
-      enum: ['executive_committee', 'chapter_committee', 'advisory_board'],
+      enum: ['executive_committee', 'advisory_board'],
       index: true,
     },
     teamPosition: { type: String, trim: true },
     teamRank: { type: Number },
+    isChapterLead: { type: Boolean, default: false, index: true },
   },
   { timestamps: true },
 );

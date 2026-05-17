@@ -4,7 +4,7 @@
  * Single-tenant simplification: no foundation org row anymore (BA's
  * `organization` plugin is gone — see `auth.config.ts`). The directory
  * lives in the plain `Member` arc resource; the bootstrap admin is just
- * a BA `user` with `role: 'admin'`.
+ * a BA `user` with `role: 'superadmin'`.
  *
  * Idempotent — safe to call on every boot. Skip silently when env vars
  * are unset (e.g. test environments that seed their own users).
@@ -87,10 +87,15 @@ export async function ensureBootstrapAdmin(): Promise<void> {
     console.log(`[bootstrap] admin user created: ${email}`);
   }
 
-  // Promote to foundation admin. We write `user.role = 'admin'` directly
-  // because `auth.api.setRole` requires an admin caller (chicken-and-egg
-  // at boot — there is none). BA's admin plugin reads `user.role` from
-  // this same collection, so the next sign-in carries the right role.
+  // Promote to foundation superadmin. We write `user.role = 'superadmin'`
+  // directly because `auth.api.setRole` requires an admin caller (chicken-
+  // and-egg at boot — there is none). The founder seed gets the infra
+  // tier; regular admins are invited from the dashboard and land on
+  // `role: 'admin'` (one rung below).
+  //
+  // Idempotent — re-running this on a user who is already `admin` upgrades
+  // them; on a user who is already `superadmin` it's a no-op. Existing
+  // operators don't need a manual migration step.
   void api;
   // BA's mongo-adapter has stored `user._id` as either ObjectId OR string
   // across versions, so try both shapes (cheap idempotent updates).
@@ -102,9 +107,9 @@ export async function ensureBootstrapAdmin(): Promise<void> {
   filters.push({ _id: userId } as never);
   for (const filter of filters) {
     await userCol.updateOne(filter, {
-      $set: { role: 'admin', updatedAt: new Date() },
+      $set: { role: 'superadmin', updatedAt: new Date() },
     });
   }
   // biome-ignore lint/suspicious/noConsole: bootstrap log
-  console.log(`[bootstrap] admin role pinned on ${email}`);
+  console.log(`[bootstrap] superadmin role pinned on ${email}`);
 }

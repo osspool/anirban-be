@@ -24,17 +24,18 @@ import {
   NotificationService,
   createSimpleResolver,
   type Recipient,
+  type SendResult,
   type TemplateMap,
-} from '@classytic/notifications';
+} from "@classytic/notifications";
 
 /**
  * Event names — keep in sync with the templates below. Adding a new event
  * means: (a) add a template entry, (b) wire a `notify("<name>", ...)` call.
  */
 export type NotificationEvent =
-  | 'organization_invitation'
-  | 'password_reset'
-  | 'email_verification';
+  | "organization_invitation"
+  | "password_reset"
+  | "email_verification";
 
 /**
  * Templates — `subject` + `html` per event using `${key}` interpolation
@@ -56,7 +57,7 @@ const TEMPLATES: TemplateMap = {
   },
 
   password_reset: {
-    subject: 'Reset your Anirban password',
+    subject: "Reset your Anirban password",
     html: /* html */ `
 <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; color: #0a0a0a;">
   <h2 style="font-size: 22px; font-weight: 800;">Hi \${userName},</h2>
@@ -67,7 +68,7 @@ const TEMPLATES: TemplateMap = {
   },
 
   email_verification: {
-    subject: 'Verify your email — Anirban',
+    subject: "Verify your email — Anirban",
     html: /* html */ `
 <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; color: #0a0a0a;">
   <h2 style="font-size: 22px; font-weight: 800;">Confirm your email</h2>
@@ -95,12 +96,12 @@ function getService(): NotificationService {
   if (process.env.SMTP_HOST) {
     channels.push(
       new EmailChannel({
-        name: 'email',
-        from: process.env.SMTP_FROM || 'noreply@anirban.org',
+        name: "email",
+        from: process.env.SMTP_FROM || "noreply@anirban.com",
         transport: {
           host: process.env.SMTP_HOST,
           port: Number(process.env.SMTP_PORT || 587),
-          secure: process.env.SMTP_SECURE === 'true',
+          secure: process.env.SMTP_SECURE === "true",
           auth:
             process.env.SMTP_USER && process.env.SMTP_PASS
               ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
@@ -113,8 +114,8 @@ function getService(): NotificationService {
   // Always-on dev fallback. Prints to the server log so admins can copy
   // invite links, password-reset URLs etc. straight from `npm run dev`.
   // Disabled in prod (when SMTP is configured) so we don't double-deliver.
-  if (!process.env.SMTP_HOST || process.env.NODE_ENV !== 'production') {
-    channels.push(new ConsoleChannel({ name: 'console' }));
+  if (!process.env.SMTP_HOST || process.env.NODE_ENV !== "production") {
+    channels.push(new ConsoleChannel({ name: "console" }));
   }
 
   _service = new NotificationService({
@@ -157,4 +158,154 @@ export async function notify(
     // (invite created OK, etc.) just because email is down. Log + swallow.
     console.error(`[notify] event=${event} failed:`, err);
   }
+}
+
+// ----------------------------------------------------------------------------
+// Ad-hoc admin broadcast
+// ----------------------------------------------------------------------------
+
+export type BroadcastRecipient = { email: string; name?: string };
+
+export interface BroadcastInput {
+  /** One-or-many recipients. Each gets a separate email (clean `To:` header,
+   *  per-recipient success/failure tracking — no BCC leaks). */
+  recipients: ReadonlyArray<BroadcastRecipient>;
+  subject: string;
+  /** Raw HTML body. Caller is responsible for sanitization — admin-only
+   *  surface, so we trust the input. */
+  html: string;
+  /** Plain-text fallback for clients without HTML rendering. Defaults to
+   *  a stripped version of `html`. */
+  text?: string;
+  /** Override the channel's default `from`. Useful when one tenant has
+   *  multiple sender identities. */
+  from?: string;
+  /** Optional reply-to address (e.g. `info@anirban.org` even when sending
+   *  from `noreply@`). */
+  replyTo?: string;
+}
+
+export interface BroadcastResultRow {
+  email: string;
+  status: "sent" | "failed" | "skipped";
+  error?: string;
+  messageId?: string;
+}
+
+export interface BroadcastSummary {
+  sent: number;
+  failed: number;
+  skipped: number;
+  results: ReadonlyArray<BroadcastResultRow>;
+}
+
+/**
+ * Send an ad-hoc HTML email to one or many recipients.
+ *
+ * Bypasses the template registry: subject + html are passed straight into
+ * the channel via `payload.data`, which `EmailChannel.send()` consumes
+ * directly (see `@classytic/notifications/channels/email.channel.ts`).
+ *
+ * Each recipient is dispatched as a separate `service.send()` call so:
+ *   - each gets a clean `To: <their-email>` header (no BCC leaks)
+ *   - failures are isolated per-recipient
+ *   - the per-row summary tells admins exactly who didn't receive
+ *
+ * Concurrency is bounded at 8 in-flight sends to keep SMTP / Resend
+ * rate limits happy. Failures don't throw — they're returned in the
+ * summary so the caller can show a per-row report in the UI.
+ *
+ * @example
+ *   const summary = await sendBroadcast({
+ *     recipients: [{ email: 'a@x.com' }, { email: 'b@x.com', name: 'B' }],
+ *     subject: 'Reminder: chapter meeting tomorrow',
+ *     html: '<p>See you at 10am</p>',
+ *   });
+ *   // → { sent: 2, failed: 0, skipped: 0, results: [...] }
+ */
+export async function sendBroadcast(
+  input: BroadcastInput,
+): Promise<BroadcastSummary> {
+  const service = getService();
+
+  // Default text fallback: crude HTML strip. Enough for clients that
+  // don't render HTML; admins can pass an explicit `text` for control.
+  const text =
+    input.text ??
+    input.html
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const dispatchOne = async (
+    r: BroadcastRecipient,
+  ): Promise<BroadcastResultRow> => {
+    try {
+      const dispatch = await service.send({
+        // No template — the channel reads subject/html/text from `data`.
+        event: "broadcast",
+        recipient: { email: r.email, name: r.name },
+        data: {
+          subject: input.subject,
+          html: input.html,
+          text,
+          ...(input.from && { from: input.from }),
+          ...(input.replyTo && { replyTo: input.replyTo }),
+        },
+      });
+
+      // service.send returns DispatchResult with per-channel results. Pick
+      // the email channel's row (other channels — Console etc. — also fire
+      // in dev; admins care about the email outcome).
+      const emailRow = dispatch.results.find(
+        (row: SendResult) => row.channel === "email",
+      );
+      if (emailRow) {
+        return {
+          email: r.email,
+          status: emailRow.status,
+          error: emailRow.error,
+          messageId: (emailRow.metadata as { messageId?: string } | undefined)
+            ?.messageId,
+        };
+      }
+      // No email channel registered (dev without SMTP). The ConsoleChannel
+      // counts as "sent" so the admin sees the same UX in dev.
+      const anySent = dispatch.results.find(
+        (row: SendResult) => row.status === "sent",
+      );
+      return {
+        email: r.email,
+        status: anySent ? "sent" : "skipped",
+        error: anySent ? undefined : "No active email channel",
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { email: r.email, status: "failed", error: message };
+    }
+  };
+
+  // Bounded concurrency — 8 in-flight sends.
+  const CONCURRENCY = 8;
+  const results: BroadcastResultRow[] = [];
+  let cursor = 0;
+  const workers = Array.from({ length: CONCURRENCY }, async () => {
+    while (cursor < input.recipients.length) {
+      const idx = cursor++;
+      const r = input.recipients[idx];
+      if (!r) continue;
+      results[idx] = await dispatchOne(r);
+    }
+  });
+  await Promise.all(workers);
+
+  const summary: BroadcastSummary = {
+    sent: results.filter((r) => r.status === "sent").length,
+    failed: results.filter((r) => r.status === "failed").length,
+    skipped: results.filter((r) => r.status === "skipped").length,
+    results,
+  };
+
+  return summary;
 }

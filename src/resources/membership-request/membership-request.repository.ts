@@ -1,17 +1,17 @@
 /**
  * MembershipRequest Repository
  *
- * Plain mongokit repo — soft-delete is enabled in case admins want to
- * archive old applications without losing the audit trail. Domain logic
- * (approve/reject) lives in the resource's `actions`, not here.
+ * Hard-delete only. The `status` field (`pending | approved | rejected`)
+ * already encodes the lifecycle, so a deleted application is one the
+ * admin actually wants gone — no soft-delete tombstone.
  */
 
-import { Repository, methodRegistryPlugin, softDeletePlugin } from '@classytic/mongokit';
+import { Repository, methodRegistryPlugin } from '@classytic/mongokit';
 import MembershipRequest, { type IMembershipRequest } from './membership-request.model.js';
 
 class MembershipRequestRepository extends Repository<IMembershipRequest> {
   constructor() {
-    super(MembershipRequest, [methodRegistryPlugin(), softDeletePlugin()]);
+    super(MembershipRequest, [methodRegistryPlugin()]);
   }
 }
 

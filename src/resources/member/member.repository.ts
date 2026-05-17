@@ -1,17 +1,19 @@
 /**
  * Member Repository — plain mongokit repo over the `Member` model.
  *
- * Soft-delete enabled so removing a directory entry preserves the audit
- * trail (admins can restore mis-deletes). All domain logic lives in the
- * resource layer; this file is just the persistence binding.
+ * Hard-delete only. No `softDeletePlugin`: when an admin removes a member,
+ * the row is physically deleted from MongoDB. Auditing happens through
+ * `mongoose-timeline-audit` on entities that need it; the Member doc is
+ * directory metadata, not a workflow, so retaining deleted rows would
+ * just clutter the collection.
  */
 
-import { Repository, methodRegistryPlugin, softDeletePlugin } from '@classytic/mongokit';
+import { Repository, methodRegistryPlugin } from '@classytic/mongokit';
 import Member, { type IMember } from './member.model.js';
 
 class MemberRepository extends Repository<IMember> {
   constructor() {
-    super(Member, [methodRegistryPlugin(), softDeletePlugin()]);
+    super(Member, [methodRegistryPlugin()]);
   }
 }
 

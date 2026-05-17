@@ -88,3 +88,43 @@ export async function submitSupportRequest(
     body: res.statusCode === 0 ? {} : (JSON.parse(res.body) as Record<string, unknown>),
   };
 }
+
+// ─── CMS ─────────────────────────────────────────────────────────────────────
+
+export interface CmsPageSeed {
+  slug: string;
+  locale: string;
+  data: Record<string, unknown>;
+  status?: 'draft' | 'published' | 'archived';
+  defaultLocale?: string;
+  metadata?: { title?: string; description?: string; keywords?: string[]; ogImage?: string };
+}
+
+export function makeCmsPage(overrides: Partial<CmsPageSeed> = {}): CmsPageSeed {
+  const n = seq();
+  return {
+    slug: `test-page-${n}`,
+    locale: 'en',
+    data: { heading: `Test Page ${n}`, body: 'Sample content.' },
+    ...overrides,
+  };
+}
+
+/** PATCH upsert — creates the page + locale translation in one call. */
+export async function upsertCmsPage(
+  app: FastifyInstance,
+  adminToken: string,
+  overrides: Partial<CmsPageSeed> = {},
+): Promise<{ statusCode: number; body: Record<string, unknown> }> {
+  const { slug, ...payload } = makeCmsPage(overrides);
+  const res = await app.inject({
+    method: 'PATCH',
+    url: `/api/cms/${slug}`,
+    headers: { Authorization: `Bearer ${adminToken}` },
+    payload,
+  });
+  return {
+    statusCode: res.statusCode,
+    body: res.statusCode === 0 ? {} : (JSON.parse(res.body) as Record<string, unknown>),
+  };
+}

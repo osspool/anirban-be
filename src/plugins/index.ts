@@ -9,6 +9,7 @@ import type { FastifyInstance } from 'fastify';
 import type { AppConfig } from '../config/index.js';
 import { openApiPlugin, scalarPlugin } from '@classytic/arc/docs';
 import { errorHandlerPlugin } from '@classytic/arc/plugins';
+import emailBroadcastPlugin from './email-broadcast.js';
 
 /**
  * Register all app-specific plugins
@@ -41,6 +42,8 @@ export async function registerPlugins(
     theme: 'default',
   });
 
-  // Add your custom plugins here:
-  // await app.register(myCustomPlugin, { ...options });
+  // Admin-only ad-hoc email broadcasts. Reuses the existing
+  // NotificationService singleton — SMTP env vars on, real send; SMTP off,
+  // ConsoleChannel echoes to the dev log.
+  await app.register(emailBroadcastPlugin);
 }
