@@ -22,12 +22,16 @@
  */
 
 import type { ResourceDefinition } from '@classytic/arc';
+import awarenessActivityResource from './awareness-activity/awareness-activity.resource.js';
 import chapterResource from './chapter/chapter.resource.js';
 import cmsResource from './cms/cms.resource.js';
 import mediaResource from './media/media.resource.js';
 import memberResource from './member/member.resource.js';
 import membershipRequestResource from './membership-request/membership-request.resource.js';
+import serviceProviderResource from './service-provider/service-provider.resource.js';
 import supportRequestResource from './support-request/support-request.resource.js';
+import survivorResource from './survivor/survivor.resource.js';
+import survivorCaseResource from './survivor-case/survivor-case.resource.js';
 
 /** Test-friendly static array — bypasses `loadResources` discovery. */
 export const STATIC_RESOURCES: ReadonlyArray<ResourceDefinition<unknown>> = [
@@ -37,4 +41,9 @@ export const STATIC_RESOURCES: ReadonlyArray<ResourceDefinition<unknown>> = [
   memberResource,
   membershipRequestResource,
   supportRequestResource,
+  // ── MIS / casework ──
+  survivorResource,
+  survivorCaseResource,
+  serviceProviderResource,
+  awarenessActivityResource,
 ];

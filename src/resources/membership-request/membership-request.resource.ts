@@ -24,7 +24,8 @@
  */
 
 import { defineResource } from '@classytic/arc';
-import { allowPublic, requireRoles } from '@classytic/arc/permissions';
+import { allowPublic } from '@classytic/arc/permissions';
+import { requireAdmin } from '#shared/permissions.js';
 import { buildCrudSchemasFromModel, QueryParser } from '@classytic/mongokit';
 import { createMongooseAdapter } from '@classytic/mongokit/adapter';
 import MembershipRequest, { type IMembershipRequest } from './membership-request.model.js';
@@ -58,10 +59,10 @@ const membershipRequestResource = defineResource<IMembershipRequest>({
     // Anyone can apply.
     create: allowPublic(),
     // Admin reviews + manages.
-    list: requireRoles(['admin']),
-    get: requireRoles(['admin']),
-    update: requireRoles(['admin']),
-    delete: requireRoles(['admin']),
+    list: requireAdmin(),
+    get: requireAdmin(),
+    update: requireAdmin(),
+    delete: requireAdmin(),
   },
 
   schemaOptions: {

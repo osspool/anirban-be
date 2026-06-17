@@ -29,6 +29,7 @@
 import { defineResource } from '@classytic/arc';
 import { getEntityQuery } from '@classytic/arc/core';
 import { allowPublic, anyOf, requireRoles } from '@classytic/arc/permissions';
+import { requireAdmin } from '#shared/permissions.js';
 import { NotFoundError, ValidationError } from '@classytic/arc/utils';
 import { buildCrudSchemasFromModel, QueryParser } from '@classytic/mongokit';
 import { createMongooseAdapter } from '@classytic/mongokit/adapter';
@@ -43,7 +44,7 @@ const queryParser = new QueryParser({
 });
 
 /** Roles allowed to drive the workflow. */
-const committeeOrAdmin = anyOf(requireRoles(['admin']), requireRoles(['committee_member']));
+const committeeOrAdmin = anyOf(requireAdmin(), requireRoles(['committee_member']));
 
 /** Allowed transitions — single source of truth for the workflow FSM. */
 const TRANSITIONS: Record<string, { from: SupportRequestStatus[]; to: SupportRequestStatus }> = {
@@ -129,7 +130,7 @@ const supportRequestResource = defineResource<ISupportRequest>({
     list: committeeOrAdmin,
     update: committeeOrAdmin,
     // Archive is admin-only.
-    delete: requireRoles(['admin']),
+    delete: requireAdmin(),
   },
 
   schemaOptions: {

@@ -26,7 +26,7 @@ import {
   type IControllerResponse,
   type IRequestContext,
 } from '@classytic/arc';
-import { requireRoles } from '@classytic/arc/permissions';
+import { requireAdmin } from '#shared/permissions.js';
 import { buildCrudSchemasFromModel, QueryParser } from '@classytic/mongokit';
 import { createMongooseAdapter } from '@classytic/mongokit/adapter';
 import type { Repository } from '@classytic/mongokit';
@@ -100,10 +100,10 @@ const mediaResource = defineResource({
     disabledRoutes: ['create'],
 
     permissions: {
-      list: requireRoles(['admin']),
-      get: requireRoles(['admin']),
-      update: requireRoles(['admin']),
-      delete: requireRoles(['admin']),
+      list: requireAdmin(),
+      get: requireAdmin(),
+      update: requireAdmin(),
+      delete: requireAdmin(),
     },
 
     schemaOptions: {
@@ -128,7 +128,7 @@ const mediaResource = defineResource({
         method: 'POST',
         path: '/upload',
         summary: 'Upload an image to Cloudinary and persist its metadata',
-        permissions: requireRoles(['admin']),
+        permissions: requireAdmin(),
         raw: true,
         handler: async (req: FastifyRequest, reply: FastifyReply) => {
           const body = req.body as {
@@ -186,7 +186,7 @@ const mediaResource = defineResource({
         method: 'POST',
         path: '/bulk-delete',
         summary: 'Delete multiple media records with Cloudinary cleanup',
-        permissions: requireRoles(['admin']),
+        permissions: requireAdmin(),
         raw: true,
         handler: async (req: FastifyRequest, reply: FastifyReply) => {
           const body = req.body as { ids?: string[] };

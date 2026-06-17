@@ -26,32 +26,35 @@
     "test:watch": "vitest --project unit --project integration"
   },
   "dependencies": {
-    "@classytic/arc": "^2.14.1",
-    "@classytic/media-kit": ">=3.2.0",
-    "@classytic/mongokit": "^3.13.0",
-    "@classytic/notifications": "^2.0.0",
-    "@classytic/primitives": "^0.4.0",
-    "@classytic/repo-core": "^0.4.0",
+    "@classytic/arc": "^2.18.3",
+    "@classytic/media-kit": "^3.3.1",
+    "@classytic/mongokit": "^3.16.0",
+    "@classytic/notifications": "^2.2.0",
+    "@classytic/primitives": "^0.7.2",
+    "@classytic/repo-core": "^0.6.0",
     "@fastify/cors": "^11.2.0",
     "@fastify/helmet": "^13.0.2",
-    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/rate-limit": "^11.0.0",
     "@fastify/sensible": "^6.0.4",
     "@fastify/under-pressure": "^9.0.3",
-    "better-auth": "^1.6.9",
+    "better-auth": "^1.6.19",
     "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
-    "fastify-plugin": "^5.1.0",
-    "mongodb": "^7.1.0",
-    "mongoose": "^9.6.1",
+    "fastify-plugin": "^6.0.0",
+    "mongodb": "^7.3.0",
+    "mongoose": "^9.7.0",
     "mongoose-timeline-audit": "^2.0.0",
-    "nodemailer": "^8.0.7"
+    "nodemailer": "^9.0.0"
+  },
+  "overrides": {
+    "fast-uri": "^3.1.2"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "mongodb-memory-server": "^11.1.0",
+    "@types/node": "^25.9.3",
+    "mongodb-memory-server": "^11.2.0",
     "pino-pretty": "^13.0.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5.6.0",
-    "vitest": "^4.0.0"
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   }
 }
