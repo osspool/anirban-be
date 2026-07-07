@@ -26,9 +26,9 @@
     "test:watch": "vitest --project unit --project integration"
   },
   "dependencies": {
-    "@classytic/arc": "^2.18.3",
+    "@classytic/arc": "^2.18.5",
     "@classytic/media-kit": "^3.3.1",
-    "@classytic/mongokit": "^3.16.0",
+    "@classytic/mongokit": "^3.16.1",
     "@classytic/notifications": "^2.2.0",
     "@classytic/primitives": "^0.7.2",
     "@classytic/repo-core": "^0.6.0",
