@@ -44,10 +44,20 @@ export type AgeRange = '<18' | '18-24' | '25-34' | '35-44' | '45-54' | '55+' | '
 
 /** Support categories the FE checkboxes map into. */
 export type SupportNeed =
+  | 'rescue_repatriation'
+  | 'tip_case_assistance'
   | 'legal_aid'
   | 'counselling'
-  | 'safe_housing'
+  | 'compensation'
+  | 'insurance'
+  | 'death_body_repatriation'
+  | 'scholarships'
+  | 'disability_allowance'
+  | 'employment_opportunities'
   | 'medical_help'
+  | 'others'
+  // Legacy values — retained so pre-existing records still validate on update.
+  | 'safe_housing'
   | 'just_to_talk'
   | 'diaspora_abroad';
 
@@ -141,10 +151,20 @@ const supportRequestSchema = new Schema<ISupportRequest>(
     supports: {
       type: [String],
       enum: [
+        'rescue_repatriation',
+        'tip_case_assistance',
         'legal_aid',
         'counselling',
-        'safe_housing',
+        'compensation',
+        'insurance',
+        'death_body_repatriation',
+        'scholarships',
+        'disability_allowance',
+        'employment_opportunities',
         'medical_help',
+        'others',
+        // Legacy — kept so pre-existing records still pass validation on update.
+        'safe_housing',
         'just_to_talk',
         'diaspora_abroad',
       ],
